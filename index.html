@@ -396,7 +396,7 @@ Si no hay suficiente info, inclúyelo igual y coméntalo en el veredicto.
 Responde ÚNICAMENTE con el JSON array. Sin markdown, sin backticks.`
     });
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://pkmn-proxy.rene-lobo-q.workers.dev/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: 'claude-opus-4-5', max_tokens: 1500, messages: [{ role: 'user', content }] })
