@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Pokémon Sleep Eval</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2d1b69">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PkmnSleep">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: linear-gradient(160deg, #1a1a3e 0%, #2d1b69 40%, #0d2b5e 100%);
+    min-height: 100vh; min-height: 100dvh;
+    color: #fff;
+    padding: 20px 20px env(safe-area-inset-bottom, 20px);
+    padding-top: max(20px, env(safe-area-inset-top));
+  }
+
+  /* API Key Screen */
+  #keyScreen {
+    position: fixed; inset: 0; z-index: 200;
+    background: linear-gradient(160deg, #1a1a3e 0%, #2d1b69 40%, #0d2b5e 100%);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px; transition: opacity 0.3s;
+  }
+  #keyScreen.hidden { opacity: 0; pointer-events: none; }
+
+  .key-card {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(200,184,255,0.2);
+    border-radius: 24px; padding: 32px 24px;
+    width: 100%; max-width: 400px; text-align: center;
+  }
+  .key-icon { font-size: 44px; margin-bottom: 12px; display: block; }
+  .key-card h2 { font-size: 20px; font-weight: 900; color: #ffe066; margin-bottom: 8px; }
+  .key-card p { font-size: 13px; color: #a89fd8; font-weight: 600; margin-bottom: 22px; line-height: 1.6; }
+  .key-card a { color: #c8b8ff; }
+
+  .key-input {
+    width: 100%; background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(200,184,255,0.25); border-radius: 12px;
+    padding: 13px 16px; font-family: 'Nunito', sans-serif;
+    font-size: 14px; color: #fff; margin-bottom: 14px;
+    outline: none; transition: border-color 0.2s; letter-spacing: 0.5px;
+  }
+  .key-input:focus { border-color: #c8b8ff; }
+  .key-input::placeholder { color: #4a3f78; }
+
+  .key-save-btn {
+    width: 100%; padding: 14px;
+    background: linear-gradient(135deg, #ffe066, #ffb347);
+    border: none; border-radius: 14px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 16px; font-weight: 900; color: #2d1b69; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .key-save-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,224,102,0.4); }
+  .key-error { color: #ff9999; font-size: 12px; font-weight: 700; margin-top: 10px; display: none; }
+
+  /* Settings button */
+  .settings-btn {
+    position: fixed; top: max(16px, env(safe-area-inset-top)); right: 16px;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(200,184,255,0.2);
+    border-radius: 50%; width: 40px; height: 40px; font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 10; transition: background 0.2s;
+  }
+  .settings-btn:hover { background: rgba(255,255,255,0.15); }
+
+  /* Offline badge */
+  #offlineBadge {
+    display: none; position: fixed;
+    bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: rgba(255,80,80,0.9); color: #fff;
+    font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800;
+    padding: 6px 16px; border-radius: 20px; z-index: 999;
+  }
+
+  /* Main */
+  .container { max-width: 560px; margin: 0 auto; }
+
+  #installBanner {
+    display: none; background: rgba(255,224,102,0.12);
+    border: 1px solid rgba(255,224,102,0.3); border-radius: 14px;
+    padding: 12px 16px; margin-bottom: 16px; align-items: center; gap: 12px;
+  }
+  #installBanner.visible { display: flex; }
+  .install-text { flex: 1; font-size: 13px; color: #ffe066; font-weight: 700; }
+  .install-text span { display: block; font-size: 11px; color: #a89fd8; font-weight: 600; margin-top: 2px; }
+  .install-btn {
+    background: #ffe066; border: none; border-radius: 10px;
+    padding: 8px 14px; font-family: 'Nunito', sans-serif;
+    font-size: 13px; font-weight: 900; color: #2d1b69; cursor: pointer; white-space: nowrap;
+  }
+  .install-dismiss { background: none; border: none; color: #7a6fa8; font-size: 18px; cursor: pointer; padding: 4px; }
+
+  .header { text-align: center; padding: 20px 0 18px; }
+  .moon {
+    font-size: 50px; display: block; margin-bottom: 8px;
+    filter: drop-shadow(0 0 20px rgba(255,230,100,0.5));
+    animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  h1 { font-size: 26px; font-weight: 900; color: #ffe066; text-shadow: 0 2px 20px rgba(255,224,102,0.4); }
+  .subtitle { font-size: 13px; color: #a89fd8; margin-top: 4px; font-weight: 600; }
+
+  .upload-zone {
+    background: rgba(255,255,255,0.07); border: 2px dashed rgba(200,184,255,0.4);
+    border-radius: 20px; padding: 32px 20px; text-align: center;
+    cursor: pointer; transition: all 0.25s; margin-bottom: 16px; position: relative;
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    background: rgba(255,255,255,0.12); border-color: #c8b8ff; transform: translateY(-2px);
+  }
+  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-icon { font-size: 36px; margin-bottom: 10px; }
+  .upload-text { font-size: 15px; font-weight: 700; color: #c8b8ff; }
+  .upload-hint { font-size: 12px; color: #7a6fa8; margin-top: 4px; }
+
+  #previewGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .preview-item { position: relative; border-radius: 12px; overflow: hidden; aspect-ratio: 9/16; background: rgba(0,0,0,0.3); }
+  .preview-item img { width: 100%; height: 100%; object-fit: cover; }
+  .remove-btn {
+    position: absolute; top: 6px; right: 6px;
+    background: rgba(220,50,50,0.85); border: none; border-radius: 50%;
+    width: 24px; height: 24px; color: white; font-size: 14px; font-weight: 900;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+
+  .analyze-btn {
+    width: 100%; padding: 16px;
+    background: linear-gradient(135deg, #ffe066, #ffb347);
+    border: none; border-radius: 16px; font-family: 'Nunito', sans-serif;
+    font-size: 17px; font-weight: 900; color: #2d1b69; cursor: pointer;
+    transition: all 0.2s; box-shadow: 0 4px 20px rgba(255,224,102,0.3);
+    margin-bottom: 20px; -webkit-tap-highlight-color: transparent;
+  }
+  .analyze-btn:active:not(:disabled) { transform: scale(0.97); }
+  .analyze-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .loading { text-align: center; padding: 30px; display: none; }
+  .zzz { font-size: 36px; animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; transform: scale(0.85); }
+    50% { opacity: 1; transform: scale(1.1); }
+  }
+  .loading-text { color: #a89fd8; font-size: 14px; font-weight: 700; margin-top: 10px; }
+
+  .result-card {
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(200,184,255,0.2);
+    border-radius: 18px; padding: 20px; margin-bottom: 14px;
+    animation: slideIn 0.4s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .img-thumb { font-size: 11px; color: #7a6fa8; margin-bottom: 8px; font-weight: 700; }
+  .pokemon-name { font-size: 20px; font-weight: 900; color: #ffe066; margin-bottom: 6px; }
+  .nature-badge {
+    display: inline-block; background: rgba(200,184,255,0.12);
+    border: 1px solid rgba(200,184,255,0.25); border-radius: 20px;
+    padding: 3px 12px; font-size: 12px; font-weight: 700; color: #c8b8ff; margin-bottom: 14px;
+  }
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .stat-item { background: rgba(0,0,0,0.2); border-radius: 10px; padding: 8px 12px; }
+  .stat-label { font-size: 11px; color: #7a6fa8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-size: 15px; font-weight: 800; color: #fff; margin-top: 2px; }
+  .stat-value.small { font-size: 12px; line-height: 1.4; }
+  .rating-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .rating-label { font-size: 13px; color: #a89fd8; font-weight: 700; }
+  .stars { font-size: 18px; letter-spacing: 2px; }
+  .verdict { font-size: 13px; line-height: 1.65; color: #d4ccf0; background: rgba(0,0,0,0.2); border-radius: 10px; padding: 10px 14px; }
+
+  .error-msg {
+    background: rgba(255,80,80,0.1); border: 1px solid rgba(255,80,80,0.3);
+    border-radius: 14px; padding: 16px 18px; color: #ff9999;
+    font-size: 13px; text-align: center; margin-bottom: 16px;
+  }
+  .divider { text-align: center; color: rgba(200,184,255,0.25); font-size: 11px; letter-spacing: 4px; margin: 4px 0 14px; }
+  .clear-btn {
+    background: none; border: 1px solid rgba(200,184,255,0.2); border-radius: 10px;
+    color: #a89fd8; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700;
+    padding: 9px 20px; cursor: pointer; display: block; margin: 4px auto 24px; transition: all 0.2s;
+  }
+  .clear-btn:hover { background: rgba(255,255,255,0.07); color: #c8b8ff; }
+</style>
+</head>
+<body>
+
+<div id="keyScreen">
+  <div class="key-card">
+    <span class="key-icon">🔑</span>
+    <h2>API Key de Anthropic</h2>
+    <p>
+      Necesitas una key para usar la IA.<br>
+      Consíguela en <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a><br><br>
+      Se guarda solo en este dispositivo, nadie más tiene acceso.
+    </p>
+    <input class="key-input" id="keyInput" type="password"
+      placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false">
+    <button class="key-save-btn" id="keySaveBtn">Guardar y continuar →</button>
+    <div class="key-error" id="keyError">⚠️ Debe comenzar con "sk-ant-"</div>
+  </div>
+</div>
+
+<div id="offlineBadge">📵 Sin conexión</div>
+<button class="settings-btn" id="settingsBtn" title="Cambiar API Key">⚙️</button>
+
+<div class="container">
+  <div id="installBanner">
+    <div class="install-text">
+      Instalar app
+      <span>Úsala como app nativa, sin navegador</span>
+    </div>
+    <button class="install-btn" id="installBtn">Instalar</button>
+    <button class="install-dismiss" id="dismissInstall">✕</button>
+  </div>
+
+  <div class="header">
+    <span class="moon">🌙</span>
+    <h1>Pokémon Sleep Eval</h1>
+    <p class="subtitle">Sube pantallazos · Evaluación con IA</p>
+  </div>
+
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="fileInput" accept="image/*" multiple>
+    <div class="upload-icon">📸</div>
+    <div class="upload-text">Toca para subir pantallazos</div>
+    <div class="upload-hint">Puedes subir varios a la vez</div>
+  </div>
+
+  <div id="previewGrid"></div>
+
+  <button class="analyze-btn" id="analyzeBtn" disabled>🔍 Evaluar Pokémon</button>
+
+  <div class="loading" id="loading">
+    <div class="zzz">💤</div>
+    <div class="loading-text">El Profesor Neroli está analizando...</div>
+  </div>
+
+  <div id="results"></div>
+</div>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}
+
+const offlineBadge = document.getElementById('offlineBadge');
+function updateOnline() { offlineBadge.style.display = navigator.onLine ? 'none' : 'block'; }
+window.addEventListener('online', updateOnline);
+window.addEventListener('offline', updateOnline);
+updateOnline();
+
+// API Key
+const KEY = 'pkmn_api_key';
+const keyScreen  = document.getElementById('keyScreen');
+const keyInput   = document.getElementById('keyInput');
+const keySaveBtn = document.getElementById('keySaveBtn');
+const keyError   = document.getElementById('keyError');
+const settingsBtn = document.getElementById('settingsBtn');
+
+const getKey = () => localStorage.getItem(KEY) || '';
+
+if (!getKey()) {
+  keyScreen.style.display = 'flex';
+} else {
+  keyScreen.style.display = 'none';
+}
+
+keySaveBtn.addEventListener('click', () => {
+  const val = keyInput.value.trim();
+  if (!val.startsWith('sk-ant-')) { keyError.style.display = 'block'; return; }
+  keyError.style.display = 'none';
+  localStorage.setItem(KEY, val);
+  keyScreen.classList.add('hidden');
+  setTimeout(() => { keyScreen.style.display = 'none'; keyScreen.classList.remove('hidden'); }, 300);
+});
+
+keyInput.addEventListener('keydown', e => { if (e.key === 'Enter') keySaveBtn.click(); });
+
+settingsBtn.addEventListener('click', () => {
+  keyInput.value = getKey();
+  keyScreen.style.display = 'flex';
+});
+
+// Install
+let deferredPrompt = null;
+const installBanner  = document.getElementById('installBanner');
+const installBtn     = document.getElementById('installBtn');
+const dismissInstall = document.getElementById('dismissInstall');
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); deferredPrompt = e;
+  if (!sessionStorage.getItem('installDismissed')) installBanner.classList.add('visible');
+});
+installBtn.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt(); await deferredPrompt.userChoice;
+  deferredPrompt = null; installBanner.classList.remove('visible');
+});
+dismissInstall.addEventListener('click', () => {
+  installBanner.classList.remove('visible');
+  sessionStorage.setItem('installDismissed', '1');
+});
+window.addEventListener('appinstalled', () => { installBanner.classList.remove('visible'); });
+
+// App
+const fileInput   = document.getElementById('fileInput');
+const previewGrid = document.getElementById('previewGrid');
+const analyzeBtn  = document.getElementById('analyzeBtn');
+const loading     = document.getElementById('loading');
+const results     = document.getElementById('results');
+const uploadZone  = document.getElementById('uploadZone');
+let images = [];
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag-over');
+  handleFiles(Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/')));
+});
+fileInput.addEventListener('change', () => { handleFiles(Array.from(fileInput.files)); fileInput.value = ''; });
+
+function handleFiles(files) {
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const id = Date.now() + Math.random();
+      images.push({ id, file, base64: e.target.result.split(',')[1], dataUrl: e.target.result });
+      renderPreviews();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderPreviews() {
+  previewGrid.innerHTML = '';
+  images.forEach(img => {
+    const div = document.createElement('div');
+    div.className = 'preview-item';
+    div.innerHTML = `<img src="${img.dataUrl}" alt="preview"><button class="remove-btn" data-id="${img.id}">✕</button>`;
+    previewGrid.appendChild(div);
+  });
+  document.querySelectorAll('.remove-btn').forEach(btn => {
+    btn.addEventListener('click', () => { images = images.filter(i => i.id != btn.dataset.id); renderPreviews(); });
+  });
+  analyzeBtn.disabled = images.length === 0;
+}
+
+analyzeBtn.addEventListener('click', async () => {
+  if (!images.length) return;
+  const apiKey = getKey();
+  if (!apiKey) { keyInput.value = ''; keyScreen.style.display = 'flex'; return; }
+  if (!navigator.onLine) { results.innerHTML = '<div class="error-msg">⚠️ Sin conexión. La evaluación necesita internet.</div>'; return; }
+
+  analyzeBtn.disabled = true;
+  loading.style.display = 'block';
+  results.innerHTML = '';
+
+  try {
+    const content = [];
+    images.forEach((img, i) => {
+      content.push({ type: 'image', source: { type: 'base64', media_type: img.file.type || 'image/jpeg', data: img.base64 } });
+      content.push({ type: 'text', text: `Imagen ${i + 1}` });
+    });
+    content.push({
+      type: 'text',
+      text: `Eres un experto en Pokémon Sleep. Analiza cada imagen y para CADA Pokémon visible evalúa su utilidad en el juego.
+
+Devuelve un JSON array. Cada elemento:
+- "nombre": nombre del Pokémon (español si es posible)
+- "naturaleza": su naturaleza si aparece
+- "iv_total": rating de IVs o porcentaje visible (ej: "87%" o "Rank S")
+- "habilidades": array con las habilidades/skills visibles
+- "ingredientes": array con los ingredientes si aparecen
+- "calificacion": número del 1 al 5 (qué tan bueno es para el meta)
+- "veredicto": 2-3 oraciones claras: ¿vale la pena subirlo? ¿qué rol cumple? ¿algún consejo?
+- "imagen": número de imagen donde aparece
+
+Si no hay suficiente info, inclúyelo igual y coméntalo en el veredicto.
+Responde ÚNICAMENTE con el JSON array. Sin markdown, sin backticks.`
+    });
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-opus-4-5', max_tokens: 1500, messages: [{ role: 'user', content }] })
+    });
+
+    const data = await response.json();
+    if (data.error) {
+      if (data.error.type === 'authentication_error') {
+        localStorage.removeItem(KEY);
+        keyInput.value = '';
+        keyScreen.style.display = 'flex';
+      }
+      throw new Error(data.error.message);
+    }
+
+    const text = (data.content || []).map(b => b.text || '').join('');
+    let pokemon = JSON.parse(text.replace(/```json|```/g, '').trim());
+    if (!Array.isArray(pokemon)) pokemon = [pokemon];
+
+    loading.style.display = 'none';
+    renderResults(pokemon);
+  } catch (err) {
+    loading.style.display = 'none';
+    results.innerHTML = `<div class="error-msg">⚠️ ${err.message || 'Error. Intenta de nuevo.'}</div>`;
+    analyzeBtn.disabled = images.length === 0;
+  }
+});
+
+function renderResults(pokemon) {
+  if (!pokemon.length) {
+    results.innerHTML = '<div class="error-msg">No encontré Pokémon. Sube pantallazos de la pantalla de detalle.</div>';
+    analyzeBtn.disabled = false; return;
+  }
+  let html = '';
+  pokemon.forEach((p, i) => {
+    const filled = Math.min(5, Math.max(0, parseInt(p.calificacion) || 3));
+    const stars = '⭐'.repeat(filled) + '☆'.repeat(5 - filled);
+    const habs  = Array.isArray(p.habilidades)  ? p.habilidades.join(' · ')  : (p.habilidades  || '—');
+    const ings  = Array.isArray(p.ingredientes) ? p.ingredientes.join(' · ') : (p.ingredientes || null);
+    if (i > 0) html += '<div class="divider">· · · ·</div>';
+    html += `<div class="result-card">
+      ${p.imagen ? `<div class="img-thumb">📸 Imagen ${p.imagen}</div>` : ''}
+      <div class="pokemon-name">${p.nombre || 'Pokémon'}</div>
+      ${p.naturaleza ? `<span class="nature-badge">🌿 ${p.naturaleza}</span>` : ''}
+      <div class="stats-grid">
+        <div class="stat-item"><div class="stat-label">IVs / Rank</div><div class="stat-value">${p.iv_total || '—'}</div></div>
+        <div class="stat-item"><div class="stat-label">Skills</div><div class="stat-value small">${habs || '—'}</div></div>
+        ${ings ? `<div class="stat-item" style="grid-column:1/-1"><div class="stat-label">Ingredientes</div><div class="stat-value small">${ings}</div></div>` : ''}
+      </div>
+      <div class="rating-row"><span class="rating-label">Calificación</span><span class="stars">${stars}</span></div>
+      <div class="verdict">${p.veredicto || '—'}</div>
+    </div>`;
+  });
+  results.innerHTML = html;
+  const clearBtn = document.createElement('button');
+  clearBtn.className = 'clear-btn';
+  clearBtn.textContent = '🔄 Evaluar otros Pokémon';
+  clearBtn.onclick = () => { images = []; renderPreviews(); results.innerHTML = ''; };
+  results.appendChild(clearBtn);
+}
+</script>
+</body>
+</html>
